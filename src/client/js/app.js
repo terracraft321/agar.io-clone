@@ -156,7 +156,7 @@ $( "#split" ).click(function() {
 // socket stuff.
 function setupSocket(socket) {
     // Handle ping.
-    socket.on('pong', function () {
+    socket.on('pongcheck', function () {
         var latency = Date.now() - global.startPingTime;
         debug('Latency: ' + latency + 'ms');
         window.chat.addSystemLine('Ping: ' + latency + 'ms');
@@ -539,7 +539,7 @@ function gameLoop() {
         graph.textAlign = 'center';
         graph.fillStyle = '#FFFFFF';
         graph.font = 'bold 30px sans-serif';
-        graph.fillText('You died!', global.screenWidth / 2, constant.screenHeight / 2);
+        graph.fillText('You died!', global.screenWidth / 2, global.screenHeight / 2);
     }
     else if (!global.disconnected) {
         if (global.gameStart) {
@@ -605,7 +605,15 @@ function gameLoop() {
 window.addEventListener('resize', resize);
 
 function resize() {
+    if (!socket) return;
+
     player.screenWidth = c.width = global.screenWidth = global.playerType == 'player' ? window.innerWidth : global.gameWidth;
     player.screenHeight = c.height = global.screenHeight = global.playerType == 'player' ? window.innerHeight : global.gameHeight;
+
+    if (global.playerType == 'spectate') {
+        player.x = global.gameWidth / 2;
+        player.y = global.gameHeight / 2;
+    }
+
     socket.emit('windowResized', { screenWidth: global.screenWidth, screenHeight: global.screenHeight });
 }

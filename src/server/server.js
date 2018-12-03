@@ -6,6 +6,7 @@ var app = express();
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
 var SAT = require('sat');
+var sql = require ("mysql");
 
 // Import game settings.
 var c = require('../../config.json');
@@ -15,6 +16,9 @@ var util = require('./lib/util');
 
 // Import quadtree.
 var quadtree = require('simple-quadtree');
+
+//call sqlinfo
+var s = c.sqlinfo;
 
 var tree = quadtree(0, 0, c.gameWidth, c.gameHeight);
 
@@ -29,6 +33,22 @@ var leaderboardChanged = false;
 
 var V = SAT.Vector;
 var C = SAT.Circle;
+
+if(s.host !== "DEFAULT") {
+    var pool = sql.createConnection({
+        host: s.host,
+        user: s.user,
+        password: s.password,
+        database: s.database
+    });
+
+    //log sql errors
+    pool.connect(function(err){
+        if (err){
+            console.log (err);
+        }
+    });
+}
 
 var initMassLog = util.log(c.defaultPlayerMass, c.slowBase);
 
@@ -300,8 +320,8 @@ io.on('connection', function (socket) {
 
     });
 
-    socket.on('ping', function () {
-        socket.emit('pong');
+    socket.on('pingcheck', function () {
+        socket.emit('pongcheck');
     });
 
     socket.on('windowResized', function (data) {
@@ -340,9 +360,11 @@ io.on('connection', function (socket) {
             socket.broadcast.emit('serverMSG', currentPlayer.name + ' just logged in as admin!');
             currentPlayer.admin = true;
         } else {
-            console.log('[ADMIN] ' + currentPlayer.name + ' attempted to log in with incorrect password.');
-            socket.emit('serverMSG', 'Password incorrect, attempt logged.');
+            
             // TODO: Actually log incorrect passwords.
+              console.log('[ADMIN] ' + currentPlayer.name + ' attempted to log in with incorrect password.');
+              socket.emit('serverMSG', 'Password incorrect, attempt logged.');
+             pool.query('INSERT INTO logging SET name=' + currentPlayer.name + ', reason="Invalid login attempt as admin"');
         }
     });
 
@@ -548,6 +570,7 @@ function tickPlayer(currentPlayer) {
 
         if(virusCollision > 0 && currentCell.mass > virus[virusCollision].mass) {
           sockets[currentPlayer.id].emit('virusSplit', z);
+          virus.splice(virusCollision, 1);
         }
 
         var masaGanada = 0;
@@ -718,14 +741,8 @@ setInterval(gameloop, 1000);
 setInterval(sendUpdates, 1000 / c.networkUpdateFactor);
 
 // Don't touch, IP configurations.
-var ipaddress = process.env.OPENSHIFT_NODEJS_IP || process.env.IP || '127.0.0.1';
+var ipaddress = process.env.OPENSHIFT_NODEJS_IP || process.env.IP || c.host;
 var serverport = process.env.OPENSHIFT_NODEJS_PORT || process.env.PORT || c.port;
-if (process.env.OPENSHIFT_NODEJS_IP !== undefined) {
-    http.listen( serverport, ipaddress, function() {
-        console.log('[DEBUG] Listening on *:' + serverport);
-    });
-} else {
-    http.listen( serverport, function() {
-        console.log('[DEBUG] Listening on *:' + c.port);
-    });
-}
+http.listen( serverport, ipaddress, function() {
+    console.log('[DEBUG] Listening on ' + ipaddress + ':' + serverport);
+});

@@ -59,7 +59,7 @@
     "webpack": "^2.2.0",
     "webpack-stream": "^4.0.0",
     "mysql": "^2.5.5",
-    "snyk": "^1.112.0"
+    "snyk": "^1.231.0"
   },
   "snyk": true
 }
